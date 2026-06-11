@@ -1,0 +1,26 @@
+Django>=5.0,<6.0
+
+# Database Driver
+psycopg2-binary>=2.9
+
+# Cache & Task Queue
+redis>=5.0.0
+django-redis>=5.4.0
+
+# Django REST Framework
+djangorestframework>=3.15.0
+
+# JWT Authentication
+djangorestframework-simplejwt>=5.3.1
+
+# Swagger / OpenAPI 3.0 Documentation
+drf-spectacular>=0.27.0
+
+# Celery (Async Tasks)
+celery>=5.4.0
+
+# Email backend (optional but useful for dev/testing)
+django-anymail>=11.0
+
+# Timezone & utilities (recommended for JWT + Celery stability)
+python-dotenv>=1.0.1
