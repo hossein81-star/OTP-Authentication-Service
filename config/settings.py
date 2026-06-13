@@ -31,6 +31,8 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'account',
+    'phonenumber_field',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -148,3 +150,9 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_DEFAULT_QUEUE = 'default'
 ROOT_URLCONF = "config.urls"
+
+
+# phone number settings
+PHONENUMBER_DEFAULT_REGION = "IR"
+
+AUTH_USER_MODEL = "account.CustomUser"

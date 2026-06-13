@@ -24,3 +24,7 @@ django-anymail>=11.0
 
 # Timezone & utilities (recommended for JWT + Celery stability)
 python-dotenv>=1.0.1
+
+#manage phone number
+django-phonenumber-field
+phonenumbers
