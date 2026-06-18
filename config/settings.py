@@ -33,6 +33,8 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'account',
     'phonenumber_field',
+     "drf_spectacular",
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -93,6 +95,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -128,27 +133,51 @@ DATABASES = {
         'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
+import os
 import redis
+from django.conf import settings
+
+
+# =========================
+# Redis Config (single source of truth)
+# =========================
+
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
 REDIS_DB = int(os.environ.get("REDIS_DB", 0))
-REDIS_DECODE_RESPONSES=True
+
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
 
 REDIS_CLIENT = redis.Redis(
     host=REDIS_HOST,
     port=REDIS_PORT,
     db=REDIS_DB,
-    decode_responses=REDIS_DECODE_RESPONSES,
+    decode_responses=True,
 )
 
-#celery settings
-CELERY_BROKER_URL = "redis://redis:6379/0"
-CELERY_RESULT_BACKEND = CELERY_BROKER_URL
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
+
+# =========================
+# Celery Config (IMPORTANT FIX)
+# =========================
+
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_DEFAULT_QUEUE = 'default'
+CELERY_DEFAULT_QUEUE = "default"
+
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_IGNORE_RESULT = True
+
+# =========================
+# Django
+# =========================
+
 ROOT_URLCONF = "config.urls"
 
 

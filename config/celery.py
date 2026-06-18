@@ -1,7 +1,7 @@
 from celery import Celery
 import os
-from celery.schedules import crontab
-from datetime import timedelta
+
+
 
 os.environ.setdefault(
     "DJANGO_SETTINGS_MODULE",

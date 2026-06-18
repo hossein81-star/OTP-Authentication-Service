@@ -12,7 +12,7 @@ services:
     build: . 
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
-       - .:/app
+      - .:/app
     ports:
       - "8000:8000"
     environment:
@@ -35,6 +35,13 @@ services:
       - redis-data:/data
     command: redis-server --appendonly yes
     restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   redisinsight:
     image: redis/redisinsight:latest
@@ -49,7 +56,7 @@ services:
     build: .
     command: celery -A config worker -l info
     volumes:
-       - .:/app
+      - .:/app
     environment:
       - POSTGRES_DB=postgres
       - POSTGRES_USER=postgres
@@ -58,26 +65,12 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
-      - db
-      - redis
-      - backend
-
-  # celery-beat:
-  #   build: .
-  #   command: celery -A core beat -l info
-  #   volumes:
-  #     - ./core:/app
-  #   environment:
-  #     - POSTGRES_DB=postgres
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=postgres
-  #     - POSTGRES_HOST=db
-  #     - REDIS_HOST=redis
-  #     - REDIS_PORT=6379
-  #   depends_on:
-  #     - db
-  #     - redis
-  #     - backend
+      db:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
 
 volumes:
   redis-data:
