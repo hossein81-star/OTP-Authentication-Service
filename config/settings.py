@@ -33,8 +33,8 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'account',
     'phonenumber_field',
-     "drf_spectacular",
-    
+    "drf_spectacular",
+    "rest_framework_simplejwt.token_blacklist",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -97,6 +97,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+     "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
 }
 
 # Internationalization
@@ -185,3 +188,25 @@ ROOT_URLCONF = "config.urls"
 PHONENUMBER_DEFAULT_REGION = "IR"
 
 AUTH_USER_MODEL = "account.CustomUser"
+
+#jwt settings
+from datetime import timedelta
+
+SIMPLE_JWT = {
+
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
+    "ROTATE_REFRESH_TOKENS": True,
+
+    "BLACKLIST_AFTER_ROTATION": True,
+
+    "UPDATE_LAST_LOGIN": True,
+
+    "ALGORITHM": "HS256",
+
+    "SIGNING_KEY": SECRET_KEY,
+
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}

@@ -10,12 +10,15 @@ class UserManager(BaseUserManager):
         if not phone_number:
               raise ValueError("Phone number is required")
 
-        user = self.model(phone_number=phone_number, **extra_fields)
+        user = self.model(phone_number=phone_number,email=extra_fields.get("email"),**extra_fields)
+        if password:
+            user.set_password(password)
+           
 
-        user.set_password(password)
+        else:
+            user.set_unusable_password()
         user.save(using=self._db)
-
-        return user
+        return user  
 
 
     def create_superuser(self,phone_number,password=None, **extra_fields):
@@ -53,6 +56,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     phone_verified=models.BooleanField(
             default=False
         )
+    
 
     is_staff = models.BooleanField(
         default=False

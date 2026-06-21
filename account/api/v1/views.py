@@ -1,14 +1,15 @@
 from rest_framework.views import APIView
-from .serializers import UserRegisterSerializer
+from .serializers import GetUserPhoneNUmberSerializer,UserRegisterSerializer
 from drf_spectacular.utils import extend_schema,OpenApiResponse
 from ...tasks import send_otp
 from rest_framework.response import Response
 from rest_framework import status
-from ...redis import is_cooldown,is_blocked,user_otp_request_count,add_user_to_cache,set_otp_in_cache,get_user_request_count
-from django.contrib.auth.hashers import make_password
+from ...redis import is_cooldown,is_blocked,user_otp_request_count,set_otp_in_cache,get_user_request_count,get_otp_attempts
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model
 import random
-
-
+from django.shortcuts import get_object_or_404
+User=get_user_model()
 # Generate a 6-digit OTP code
 def create_otp():
     return('' . join([str(i) for i in sorted([random.randint(0, 9) for _ in range(6)])]))
@@ -17,7 +18,7 @@ def create_otp():
 class SendOtpApi(APIView):
 
     @extend_schema(
-        request=UserRegisterSerializer,
+        request=GetUserPhoneNUmberSerializer,
         responses={
             200: OpenApiResponse(description="OTP sent successfully"),
             400: OpenApiResponse(description="Invalid request"),
@@ -27,23 +28,13 @@ class SendOtpApi(APIView):
     )
     def post(self, request):
 
-        # Ensure session exists for tracking OTP cooldown and user state
-        if not request.session.session_key:
-            request.session.create()
-
-        session_id = request.session.session_key
-
-        # Validate incoming user registration data
-        serializer = UserRegisterSerializer(data=request.data)
+       # Validate incoming user registration data
+        serializer = GetUserPhoneNUmberSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Extract validated user input
+        # Extract validated user phone number
         phone_number = str(serializer.validated_data["phone_number"])
-        email=serializer.validated_data["email"]
-        password=serializer.validated_data["confirm_password"]
-
-        # Hash password before storing it temporarily in cache
-        password=make_password(password)
+        
 
         
         # Get OTP request count for rate limiting per phone number
@@ -53,7 +44,7 @@ class SendOtpApi(APIView):
         user_is_blocked=is_blocked(count=user_request_count)
 
         # Check if session is in cooldown period (prevent spam requests)
-        user_is_cooldown=is_cooldown(session_id=session_id)
+        user_is_cooldown=is_cooldown(phone_number=phone_number)
         
         
         
@@ -71,16 +62,18 @@ class SendOtpApi(APIView):
                 otp=create_otp()
 
                 # Store OTP in Redis with expiration (cooldown handling included)
-                set_otp_in_cache(session_id=session_id,otp=otp)
+                set_otp_in_cache(phone_number=phone_number,otp=otp)
 
-                # Temporarily store user data in Redis for later verification step
-                add_user_to_cache(session_id=session_id,phone_number=phone_number,email=email,password=password)
+                
+                
 
                 # Trigger asynchronous OTP sending via Celery
                 send_otp.delay(
                     otp=otp,
                     phone_number=phone_number
                 )
+                
+                
 
                 # Return success response
                 return Response(
@@ -107,3 +100,58 @@ class SendOtpApi(APIView):
                                 },
                                 status=status.HTTP_429_TOO_MANY_REQUESTS
                             )
+
+
+
+    
+class UserRegisterApi(APIView):
+    @extend_schema(
+            request=UserRegisterSerializer,
+            responses={
+                200: OpenApiResponse(description="User Created."),
+                400: OpenApiResponse(description="Invalid request"),
+            },
+            description="User Created.",
+    )
+    def post(self,request):
+        serializer=UserRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone_number=serializer.validated_data["phone_number"]
+        attemps_otp_field_count=int(get_otp_attempts(phone_number=phone_number))
+        user_is_blocked=is_blocked(count=attemps_otp_field_count)
+        if not user_is_blocked:
+            serializer.save()
+            
+            
+            user=get_object_or_404(User,phone_number=phone_number)
+            tockens=self.get_tokens_for_user(user)
+        
+            user.phone_verified=True
+            user.save()
+
+            return Response({
+                "user": {
+                    "id": user.id,
+                    "phone_number": str(user.phone_number),
+                    "tocken":tockens
+                },
+                
+            }, status=status.HTTP_201_CREATED)
+        
+        return  Response(
+                    {
+                        "message": "you are blocked",
+                        "retry_after": 60
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+        
+        
+    def get_tokens_for_user(self,user):
+            refresh = RefreshToken.for_user(user)
+
+            return {
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }    
+         

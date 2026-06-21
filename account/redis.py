@@ -3,8 +3,10 @@ from django.conf import settings
 
 redis_client=settings.REDIS_CLIENT
 
-def __user_key(session_id):
-    return f"user:{session_id}"
+def __otp_key(phone_number):
+    return f"phone number otp:{phone_number}"
+
+
 
 def is_blocked(count):
     if count < 5:
@@ -12,38 +14,38 @@ def is_blocked(count):
     return True    
    
 
-def is_cooldown(session_id):
-   if redis_client.exists(f"otp_cooldown:{session_id}"):
+def is_cooldown(phone_number):
+   if redis_client.exists(f"otp_cooldown:{phone_number}"):
          return True
    return False
 
-def set_otp_in_cache(session_id, otp):
-    print(f"setting otp for {session_id}")
+def set_otp_in_cache(phone_number, otp):
+    key=__otp_key(phone_number=phone_number)
 
     redis_client.set(
-        f"otp_cooldown:{session_id}",
+        f"otp_cooldown:{phone_number}",
         "1",
-        ex=120
+        ex=600
     )
 
     redis_client.set(
-        f"otp:{session_id}",
+        key,
         otp,
-        ex=120
+        ex=600
     )
 
     
 
 
 def user_otp_request_count(phone_number):
-    key = f"otp_request_count:{phone_number}"
+    key = f"otp:otp_request_count:{phone_number}"
     count = redis_client.incr(key)
     if count == 1:
         redis_client.expire(key, 3600)
 
 
 def get_user_request_count(phone_number):
-    key = f"otp_request_count:{phone_number}"
+    key = f"otp:otp_request_count:{phone_number}"
     if redis_client.exists(key):
         count=redis_client.get(key)
         return int(count)
@@ -51,19 +53,34 @@ def get_user_request_count(phone_number):
     
     
 
-def add_user_to_cache(session_id,phone_number,email,password):
-    session_id=__user_key(session_id=session_id)
 
-    if not redis_client.exists(session_id):
-        data={
-            "phone_number":phone_number,
-            "email":email,
-            "password":password
-        }
-        redis_client.setex(session_id,600,json.dumps(data))
         
    
     
-   
-  
+def get_otp_from_cache(phone_number):
+    key=__otp_key(phone_number=phone_number)
+    if redis_client.exists(key):
+        otp=redis_client.get(key)
+        return otp
+    return False
     
+
+
+
+def increment_failed_otp_attempts(phone_number):
+    key = f"otp:failed_attempts:{phone_number}"
+
+    attempts = redis_client.incr(key)
+
+    if attempts == 1:
+        redis_client.expire(key, 3600)
+
+    return attempts
+      
+    
+def get_otp_attempts(phone_number):
+    key = f"otp:failed_attempts:{phone_number}"
+    if redis_client.exists(key):
+        count=redis_client.get(key)
+        return int(count)
+    return 0 
