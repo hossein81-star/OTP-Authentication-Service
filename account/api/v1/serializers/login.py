@@ -3,28 +3,13 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from phonenumber_field.serializerfields import PhoneNumberField
 from django.contrib.auth import get_user_model
-from ...redis import get_otp_from_cache,increment_failed_otp_attempts
-
-User = get_user_model()
+from ....authentication.redis import get_otp_from_cache,increment_failed_otp_attempts
 
 
-class GetUserPhoneNUmberSerializer(serializers.Serializer):
-    phone_number = PhoneNumberField()
 
-
-class UserRegisterSerializer(serializers.Serializer):
+class UserLoginOtpSerializer(serializers.Serializer):
     phone_number = PhoneNumberField()
     otp = serializers.CharField(max_length=6)
-
-    def validate_phone_number(self, value):
-        print(f"value:{value}")
-        
-        if User.objects.filter(phone_number=str(value)).exists():
-            raise serializers.ValidationError(
-                "This phone number is already registered."
-            )
-        return value
-
 
     def validate(self, attrs):
         phone_number=attrs["phone_number"]
@@ -47,8 +32,5 @@ class UserRegisterSerializer(serializers.Serializer):
             )
 
         attrs.pop("otp")
+        
         return attrs
-
-
-    def create(self, validated_data):
-        return User.objects.create_user(**validated_data)

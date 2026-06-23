@@ -1,7 +1,7 @@
 from celery import shared_task
-from .redis import set_otp_in_cache
 
-import random
+
+
 
 
 

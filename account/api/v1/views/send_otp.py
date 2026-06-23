@@ -1,18 +1,12 @@
 from rest_framework.views import APIView
-from .serializers import GetUserPhoneNUmberSerializer,UserRegisterSerializer
+from ..serializers.register import GetUserPhoneNUmberSerializer
 from drf_spectacular.utils import extend_schema,OpenApiResponse
-from ...tasks import send_otp
+from ....tasks import send_otp
 from rest_framework.response import Response
 from rest_framework import status
-from ...redis import is_cooldown,is_blocked,user_otp_request_count,set_otp_in_cache,get_user_request_count,get_otp_attempts
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import get_user_model
-import random
-from django.shortcuts import get_object_or_404
-User=get_user_model()
-# Generate a 6-digit OTP code
-def create_otp():
-    return('' . join([str(i) for i in sorted([random.randint(0, 9) for _ in range(6)])]))
+from ....authentication.redis import is_cooldown,is_blocked,user_otp_request_count,set_otp_in_cache,get_user_request_count
+
+from ....authentication.otp import create_otp
 
 
 class SendOtpApi(APIView):
@@ -100,58 +94,3 @@ class SendOtpApi(APIView):
                                 },
                                 status=status.HTTP_429_TOO_MANY_REQUESTS
                             )
-
-
-
-    
-class UserRegisterApi(APIView):
-    @extend_schema(
-            request=UserRegisterSerializer,
-            responses={
-                200: OpenApiResponse(description="User Created."),
-                400: OpenApiResponse(description="Invalid request"),
-            },
-            description="User Created.",
-    )
-    def post(self,request):
-        serializer=UserRegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        phone_number=serializer.validated_data["phone_number"]
-        attemps_otp_field_count=int(get_otp_attempts(phone_number=phone_number))
-        user_is_blocked=is_blocked(count=attemps_otp_field_count)
-        if not user_is_blocked:
-            serializer.save()
-            
-            
-            user=get_object_or_404(User,phone_number=phone_number)
-            tockens=self.get_tokens_for_user(user)
-        
-            user.phone_verified=True
-            user.save()
-
-            return Response({
-                "user": {
-                    "id": user.id,
-                    "phone_number": str(user.phone_number),
-                    "tocken":tockens
-                },
-                
-            }, status=status.HTTP_201_CREATED)
-        
-        return  Response(
-                    {
-                        "message": "you are blocked",
-                        "retry_after": 60
-                    },
-                    status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
-        
-        
-    def get_tokens_for_user(self,user):
-            refresh = RefreshToken.for_user(user)
-
-            return {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            }    
-         
