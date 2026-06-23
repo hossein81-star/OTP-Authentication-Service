@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema,OpenApiResponse
 
 from rest_framework.response import Response
 from rest_framework import status
-from ....authentication.redis import is_blocked,get_otp_attempts
+from ....authentication.redis import is_blocked,get_otp_attempts,delete_user_cached_data
 
 from django.contrib.auth import get_user_model
 from ....authentication.jwt import create_tokens_for_user
@@ -37,7 +37,7 @@ class UserLoginOtpApi(APIView):
             
             user=get_object_or_404(User,phone_number=phone_number)
             tokens=create_tokens_for_user(user)
-        
+            delete_user_cached_data(phone_number=phone_number)
             return Response({
                 "user": {
                     "id": user.id,

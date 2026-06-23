@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema,OpenApiResponse
 from ....tasks import send_otp
 from rest_framework.response import Response
 from rest_framework import status
-from ....authentication.redis import is_cooldown,is_blocked,user_otp_request_count,set_otp_in_cache,get_user_request_count
+from ....authentication.redis import is_cooldown,is_blocked,increment_otp_request_count,set_otp_in_cache,get_user_request_count
 
 from ....authentication.otp import create_otp
 
@@ -44,12 +44,12 @@ class SendOtpApi(APIView):
         
         # Allow OTP generation only if user is not blocked
         if not user_is_blocked:
-            
+            increment_otp_request_count(phone_number=phone_number)
             # Proceed only if cooldown period is not active
             if not user_is_cooldown:
 
                 # Increment OTP request count for this phone number
-                user_otp_request_count(phone_number)
+                # increment_otp_request_count(phone_number)
                 
                 
                 # Generate OTP code

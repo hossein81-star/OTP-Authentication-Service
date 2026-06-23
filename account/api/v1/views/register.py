@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema,OpenApiResponse
 from ....tasks import send_otp
 from rest_framework.response import Response
 from rest_framework import status
-from ....authentication.redis import is_blocked,get_otp_attempts
+from ....authentication.redis import is_blocked,get_otp_attempts,delete_user_cached_data
 
 from django.contrib.auth import get_user_model
 
@@ -37,6 +37,7 @@ class UserRegisterApi(APIView):
         
             user.phone_verified=True
             user.save()
+            delete_user_cached_data(phone_number=phone_number)
 
             return Response({
                 "user": {
